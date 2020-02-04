@@ -48,7 +48,7 @@ proto=http		# Protocol to use, default is http, can be overwritten with -S param
 version=1.2.2
 
 # Check for necessary commands
-for cmd in jshon curl [
+for cmd in jq curl [
 do
  if ! `which ${cmd} 1>/dev/null`
  then
@@ -137,10 +137,10 @@ case ${type} in
 info)
 api_out_clusters=$(curl -s ${selfsigned} -u "${apiuser}:${apipass}" "${proto}://${apihost}/v3/clusters")
 api_out_project=$(curl -s ${selfsigned} -u "${apiuser}:${apipass}" "${proto}://${apihost}/v3/project")
-declare -a cluster_ids=( $(echo "$api_out_clusters" | jshon -e data -a -e id) )
-declare -a cluster_names=( $(echo "$api_out_clusters" | jshon -e data -a -e name) )
-declare -a project_ids=( $(echo "$api_out_project" | jshon -e data -a -e id) )
-declare -a project_names=( $(echo "$api_out_project" | jshon -e data -a -e name) )
+declare -a cluster_ids=( $(echo "$api_out_clusters" | jq -r '.data[].id') )
+declare -a cluster_names=( $(echo "$api_out_clusters" | jq -r '.data[].name') )
+declare -a project_ids=( $(echo "$api_out_project" | jq -r '.data[].id') )
+declare -a project_names=( $(echo "$api_out_project" | jq -r '.data[].name') )
 
 #echo ${cluster_ids[*]}     # Enable for debugging
 #echo ${cluster_names[*]}   # Enable for debugging
@@ -172,10 +172,10 @@ if [[ -z $clustername ]]; then
 
 # Check status of all clusters
   api_out_clusters=$(curl -s ${selfsigned} -u "${apiuser}:${apipass}" "${proto}://${apihost}/v3/clusters")
-  declare -a cluster_ids=( $(echo "$api_out_clusters" | jshon -e data -a -e id) )
-  declare -a cluster_names=( $(echo "$api_out_clusters" | jshon -e data -a -e name) )
-  declare -a healthstatus=( $(echo "$api_out_clusters" | jshon -e data -a -e componentStatuses -a -e conditions -a -e status -u) )
-  declare -a component=( $(echo "$api_out_clusters" | jshon -e data -a -e componentStatuses -a -e name -u) )
+  declare -a cluster_ids=( $(echo "$api_out_clusters" | jq -r '.data[].id') )
+  declare -a cluster_names=( $(echo "$api_out_clusters" | jq -r '.data[].name') )
+  declare -a healthstatus=( $(echo "$api_out_clusters" | jq -r '.data[] .componentStatuses[] .conditions[] .status') )
+  declare -a component=( $(echo "$api_out_clusters" | jq -r '.data[] .componentStatuses[] .name') )
   
   for cluster in ${cluster_ids[*]}
   do
@@ -208,8 +208,8 @@ else
     then echo "CHECK_RANCHER2 CRITICAL - Cluster $clustername not found. Hint: Use '-t info' to identify cluster and project names."; exit ${STATE_CRITICAL}
   fi
 
-  declare -a component=( $(echo "$api_out_single_cluster" | jshon -e componentStatuses -a -e name -u) )
-  declare -a healthstatus=( $(echo "$api_out_single_cluster" | jshon -e componentStatuses -a -e conditions -a -e status -u) )
+  declare -a component=( $(echo "$api_out_single_cluster" | jq -r '.componentStatuses[] .name') )
+  declare -a healthstatus=( $(echo "$api_out_single_cluster" | jq -r '.componentStatuses[] .conditions[] .status') )
   
   i=0
   for status in ${healthstatus[*]}
@@ -238,9 +238,9 @@ if [[ -z $clustername ]]; then
 
 # Check status of all nodes in all clusters
   api_out_nodes=$(curl -s ${selfsigned} -u "${apiuser}:${apipass}" "${proto}://${apihost}/v3/nodes")
-  declare -a node_names=( $(echo "$api_out_nodes" | jshon -e data -a -e nodeName -u) )
-  declare -a node_status=( $(echo "$api_out_nodes" | jshon -e data -a -e state -u) )
-  declare -a node_cluster_member=( $(echo "$api_out_nodes" | jshon -e data -a -e clusterId -u) )
+  declare -a node_names=( $(echo "$api_out_nodes" | jq -r '.data[] .nodeName') )
+  declare -a node_status=( $(echo "$api_out_nodes" | jq -r '.data[] .state') )
+  declare -a node_cluster_member=( $(echo "$api_out_nodes" | jq -r '.data[] .clusterId') )
 
   i=0
   for node in ${node_names[*]}
@@ -273,8 +273,8 @@ else
     then echo "CHECK_RANCHER2 CRITICAL - Cluster $clustername not found. Hint: Use '-t info' to identify cluster and project names."; exit ${STATE_CRITICAL}
   fi
 
-  declare -a node_names=( $(echo "$api_out_nodes" | jshon -e data -a -e nodeName -u) )
-  declare -a node_status=( $(echo "$api_out_nodes" | jshon -e data -a -e state -u) )
+  declare -a node_names=( $(echo "$api_out_nodes" | jq -r '.data[] .nodeName') )
+  declare -a node_status=( $(echo "$api_out_nodes" | jq -r '.data[] .state') )
 
   i=0
   for node in ${node_names[*]}
@@ -307,10 +307,10 @@ if [[ -z $projectname ]]; then
 
 # Check status of all projects
   api_out_project=$(curl -s ${selfsigned} -u "${apiuser}:${apipass}" "${proto}://${apihost}/v3/project")
-  declare -a project_ids=( $(echo "$api_out_project" | jshon -e data -a -e id -u) )
-  declare -a project_names=( $(echo "$api_out_project" | jshon -e data -a -e name -u) )
-  declare -a cluster_ids=( $(echo "$api_out_project" | jshon -e data -a -e clusterId) )
-  declare -a healthstatus=( $(echo "$api_out_project" | jshon -e data -a -e state -u) )
+  declare -a project_ids=( $(echo "$api_out_project" | jq -r '.data[] .id') )
+  declare -a project_names=( $(echo "$api_out_project" | jq -r '.data[] .name') )
+  declare -a cluster_ids=( $(echo "$api_out_project" | jq '.data[].clusterId') )
+  declare -a healthstatus=( $(echo "$api_out_project" | jq -r '.data[] .state') )
   
   for project in ${project_ids[*]}
   do
@@ -343,7 +343,7 @@ else
     then echo "CHECK_RANCHER2 CRITICAL - Project $projectname not found. Hint: Use '-t info' to identify cluster and project names."; exit ${STATE_CRITICAL}
   fi
 
-  healthstatus=$(echo "$api_out_single_project" | jshon -e state -u)
+  healthstatus=$(echo "$api_out_single_project" | jq -r '.state')
   
   if [[ ${healthstatus} != active ]]
   then
@@ -373,9 +373,9 @@ if [[ -z $workloadname ]]; then
     echo "CHECK_RANCHER2 CRITICAL - Cluster $clustername not found. Hint: Use '-t info' to identify cluster and project names."; exit ${STATE_CRITICAL}
   fi
 
-  declare -a workload_names=( $(echo "$api_out_workloads" | jshon -e data -a -e name) )
-  declare -a healthstatus=( $(echo "$api_out_workloads" | jshon -e data -a -e state -u) )
-  declare -a pausedstatus=( $(echo "$api_out_workloads" | jshon -e data -a -s paused -u) )
+  declare -a workload_names=( $(echo "$api_out_workloads" | jq '.data[].name') )
+  declare -a healthstatus=( $(echo "$api_out_workloads" | jq -r '.data[] .state') )
+  declare -a pausedstatus=( $(echo "$api_out_workloads" | jq -r '.data[] -s paused -u') )
 
   # We rather WARN than silently return OK for zero workloads
   if [[ ${#workload_names} -eq 0 ]]; then 
@@ -433,7 +433,7 @@ else
     then echo "CHECK_RANCHER2 CRITICAL - Workload $workloadname not found."; exit ${STATE_CRITICAL}
   fi
 
-  healthstatus=$(echo "$api_out_single_workload" | jshon -e data -a -e state -u)
+  healthstatus=$(echo "$api_out_single_workload" | jq -r '.data[] .state')
   
   if [[ ${healthstatus} = updating ]]
   then 
@@ -464,8 +464,8 @@ if [[ -z $podname ]]; then
     echo "CHECK_RANCHER2 CRITICAL - Cluster $clustername not found. Hint: Use '-t info' to identify cluster and project names."; exit ${STATE_CRITICAL}
   fi
 
-  declare -a pod_names=( $(echo "$api_out_pods" | jshon -e data -a -e name) )
-  declare -a healthstatus=( $(echo "$api_out_pods" | jshon -e data -a -e state -u) )
+  declare -a pod_names=( $(echo "$api_out_pods" | jq '.data[].name') )
+  declare -a healthstatus=( $(echo "$api_out_pods" | jq -r '.data[] .state') )
 
   # We rather WARN than silently return OK for zero pods
   if [[ ${#pod_names} -eq 0 ]]; then
@@ -509,7 +509,7 @@ else
     then echo "CHECK_RANCHER2 CRITICAL - Pod $podname not found. Verify project (-p) and pod (-o) names."; exit ${STATE_CRITICAL}
   fi
 
-  healthstatus=$(echo "$api_out_single_pod" | jshon -e state -u)
+  healthstatus=$(echo "$api_out_single_pod" | jq -r '.state')
 
   if [[ ${healthstatus} != running ]]
   then
